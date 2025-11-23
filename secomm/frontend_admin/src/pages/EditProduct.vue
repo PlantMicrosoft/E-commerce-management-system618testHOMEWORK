@@ -154,6 +154,7 @@
                   style="width: 200px; height: 200px"
                   fit="cover"
                   class="rounded-lg"
+                  :preview-src-list="[imagePreview]"
                 />
                 <div class="mt-3">
                   <el-button type="danger" size="small" @click.stop="removeImage" :icon="Delete">
@@ -340,10 +341,9 @@ const fetchProduct = async () => {
     }
     
     if (productData.imageUrl) {
-      // 如果是相对路径，添加后端baseUrl
-      const fullImageUrl = productData.imageUrl.startsWith('http') 
-        ? productData.imageUrl 
-        : `http://localhost:8080${productData.imageUrl}`
+      const fullImageUrl = productData.imageUrl.startsWith('http')
+        ? productData.imageUrl
+        : `http://localhost:8080${productData.imageUrl.startsWith('/') ? '' : '/'}${productData.imageUrl}`
       imagePreview.value = fullImageUrl
       console.log("产品图片 URL:", fullImageUrl)
     }

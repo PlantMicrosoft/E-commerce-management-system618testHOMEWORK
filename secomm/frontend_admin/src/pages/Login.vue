@@ -1,4 +1,5 @@
 <template>
+
   <div
     class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4"
   >
@@ -28,31 +29,41 @@
         </div>
 
         <form @submit.prevent="handleLogin" class="space-y-6">
-          <!-- Username input -->
           <div>
-            <label class="block text-sm font-medium text-slate-300 mb-2">用户名</label>
+            <label class="block text-sm font-medium text-slate-300 mb-2">姓名</label>
             <input
-              v-model="formData.username"
+              v-model="formData.name"
+              type="text"
+              placeholder="John Doe"
+              class="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              required
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-2">邮箱地址</label>
+            <input
+              v-model="formData.email"
               type="email"
-              placeholder="请输入邮箱地址"
+              placeholder="john@example.com"
               class="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               required
             />
           </div>
 
-          <!-- Password input -->
           <div>
-            <label class="block text-sm font-medium text-slate-300 mb-2">密码</label>
-            <input
-              v-model="formData.password"
-              type="password"
-              placeholder="请输入密码"
-              class="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-              required
-            />
+            <label class="block text-sm font-medium text-slate-300 mb-2">角色</label>
+            <div class="space-y-3 bg-slate-700/30 border border-slate-600 rounded-lg p-4">
+              <label v-for="role in roles" :key="role.name" class="flex items-start gap-3 cursor-pointer">
+                <input type="radio" class="mt-1" :value="role.name" v-model="formData.role" />
+                <div>
+                  <p class="text-slate-200 font-medium">{{ role.displayName }}</p>
+                  <p class="text-slate-400 text-xs">{{ role.description }}</p>
+                </div>
+              </label>
+            </div>
           </div>
 
-          <!-- Submit button -->
           <button
             type="submit"
             :disabled="loading"
@@ -88,55 +99,27 @@ import { ElMessage } from 'element-plus'
 const router = useRouter()
 const authStore = useAuthStore()
 
-const formData = ref({
-  username: '',
-  password: ''
+const roles = Object.values(roleConfigurations)
+
+const formData = ref<{ name: string; email: string; role: UserRole | '' }>({
+  name: '',
+  email: '',
+  role: ''
 })
 
 const loading = ref(false)
 
 async function handleLogin() {
-  if (!formData.value.username || !formData.value.password) {
-    ElMessage.error('请输入用户名和密码')
+  if (!formData.value.name || !formData.value.email || !formData.value.role) {
+    ElMessage.error('请输入姓名、邮箱并选择角色')
     return
   }
 
   loading.value = true
-  
   try {
-    const response = await fetch('http://localhost:8080/api/auth/signin', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        username: formData.value.username,
-        password: formData.value.password
-      })
-    })
-
-    const data = await response.json()
-
-    if (data.status === 200) {
-      // 保存JWT token和用户信息
-      localStorage.setItem('token', data.data.token)
-      localStorage.setItem('user', JSON.stringify(data.data))
-      
-      // 更新store状态
-      authStore.login(
-        data.data.realName || data.data.username,
-        data.data.username,
-        'admin' // 根据实际角色设置
-      )
-      
-      ElMessage.success('登录成功')
-      router.push('/dashboard')
-    } else {
-      ElMessage.error(data.message || '登录失败')
-    }
-  } catch (error) {
-    console.error('登录错误:', error)
-    ElMessage.error('网络错误，请稍后重试')
+    authStore.login(formData.value.name, formData.value.email, formData.value.role as UserRole)
+    ElMessage.success('登录成功')
+    router.push('/manager-dashboard')
   } finally {
     loading.value = false
   }

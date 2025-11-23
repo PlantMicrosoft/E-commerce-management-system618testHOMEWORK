@@ -1,4 +1,4 @@
-import { get, post, postFormData, put, del } from '../utils/api.js'
+import { get, post, postFormData, putFormData, put, del } from '../utils/api.js'
 
 // 获取所有产品（支持搜索和过滤）
 export const getProducts = async (params = {}) => {
@@ -17,6 +17,15 @@ export const getProducts = async (params = {}) => {
   
   const url = queryParams.toString() ? `/products?${queryParams.toString()}` : '/products'
   return await get(url)
+}
+
+// 搜索产品
+export const searchProducts = async (keyword, page = 0, size = 10) => {
+  const q = new URLSearchParams()
+  q.append('keyword', keyword)
+  q.append('page', page)
+  q.append('size', size)
+  return await get(`/products/search?${q.toString()}`)
 }
 
 // 获取单个产品详情
@@ -48,7 +57,6 @@ export const createProduct = async (productData) => {
 // 更新产品
 export const updateProduct = async (id, productData) => {
   if (productData.imageFile) {
-    // 如果有新图片，使用FormData
     const formData = new FormData()
     formData.append('sku', productData.sku)
     formData.append('name', productData.name)
@@ -59,7 +67,8 @@ export const updateProduct = async (id, productData) => {
     formData.append('active', productData.active)
     formData.append('image', productData.imageFile)
     
-    return await postFormData(`/products/${id}`, formData)
+    // 后端要求PUT + multipart
+    return await putFormData(`/products/${id}`, formData)
   } else {
     // 没有新图片，使用JSON
     const updateData = {

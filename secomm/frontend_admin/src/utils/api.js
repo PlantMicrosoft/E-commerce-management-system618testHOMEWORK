@@ -78,6 +78,26 @@ export const postFormData = async (url, formData, options = {}) => {
   return handleResponse(response)
 }
 
+// PUT 请求 (FormData)
+export const putFormData = async (url, formData, options = {}) => {
+  const token = getToken()
+  const config = {
+    headers: {},
+    ...options
+  }
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+
+  const response = await fetch(`${API_BASE_URL}${url}`, {
+    method: 'PUT',
+    body: formData,
+    ...config
+  })
+  return handleResponse(response)
+}
+
 // PUT 请求
 export const put = async (url, data, options = {}) => {
   const config = createRequestConfig(options)

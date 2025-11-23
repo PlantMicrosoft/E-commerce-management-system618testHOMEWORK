@@ -236,9 +236,9 @@ public class ProductService {
             String randomCode = UUID.randomUUID().toString().substring(0, 8);
             String filename = sku + "_" + randomCode + extension;
             
-            // 创建目录结构: /uploads/images/products/{category}/
+            // 创建目录结构: /uploads/images/{category}/ 与数据库示例保持一致
             String categoryDir = categoryEnglishName.toLowerCase().replaceAll("[^a-zA-Z0-9]", "_");
-            Path uploadDir = Paths.get("uploads", "images", "products", categoryDir);
+            Path uploadDir = Paths.get("uploads", "images", categoryDir);
             
             // 确保目录存在
             if (!Files.exists(uploadDir)) {
@@ -249,8 +249,8 @@ public class ProductService {
             Path filePath = uploadDir.resolve(filename);
             Files.copy(image.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
             
-            // 返回相对路径作为URL
-            String imageUrl = "/uploads/images/products/" + categoryDir + "/" + filename;
+            // 返回相对路径作为URL（不含 products 子目录）
+            String imageUrl = "/uploads/images/" + categoryDir + "/" + filename;
             
             log.info("图片上传成功 - 文件路径: {}", filePath.toString());
             

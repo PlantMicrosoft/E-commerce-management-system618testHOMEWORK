@@ -17,6 +17,7 @@
           style="width: 300px"
           clearable
         />
+        <el-button type="primary" :icon="Search" @click="handleSearch">搜索</el-button>
         <el-select
           v-model="selectedCategory"
           placeholder="按种类过滤。。。"
@@ -61,7 +62,10 @@
                 shape="square"
                 :src="getImageUrl(row.imageUrl)"
                 fit="cover"
-              />
+                @error="() => true"
+              >
+                <img src="https://via.placeholder.com/40" />
+              </el-avatar>
               <div>
                 <div class="font-medium">{{ row.name }}</div>
                 <div class="text-sm text-gray-500">SKU: {{ row.sku }}</div>
@@ -201,7 +205,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Plus, Edit, Delete, Search, View } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { getProducts, deleteProduct as deleteProductAPI } from '../services/productService.js'
+import { getProducts, searchProducts, deleteProduct as deleteProductAPI } from '../services/productService.js'
 
 const router = useRouter()
 
@@ -215,13 +219,14 @@ const total = ref(0)
 const fetchProducts = async (page = 1, size = pageSize.value) => {
   loading.value = true
   try {
-    const params = {
-      page: page - 1, // 后端从0开始计数
-      size: size,
-      sortBy: 'id',
-      sortDir: 'desc'
+    const keyword = searchQuery.value?.trim()
+    let response
+    if (keyword) {
+      response = await searchProducts(keyword, page - 1, size)
+    } else {
+      const params = { page: page - 1, size, sortBy: 'id', sortDir: 'desc' }
+      response = await getProducts(params)
     }
-    const response = await getProducts(params)
     const data = response.data
     
     products.value = data.content || []
@@ -292,14 +297,11 @@ const filteredProducts = computed(() => {
 // 处理图片URL
 const getImageUrl = (imageUrl) => {
   if (!imageUrl) return 'https://via.placeholder.com/40'
-  
-  // 如果是完整URL，直接返回
-  if (imageUrl.startsWith('http')) {
-    return imageUrl
-  }
-  
-  // 如果是相对路径，添加后端baseUrl
-  return `http://localhost:8080${imageUrl}`
+
+  if (imageUrl.startsWith('http')) return imageUrl
+
+  const normalized = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
+  return `http://localhost:8080${normalized}`
 }
 
 const getCategoryTagType = (categoryName) => {
