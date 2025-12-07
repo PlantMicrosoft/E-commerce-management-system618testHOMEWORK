@@ -10,6 +10,7 @@ import org.yiqixue.secomm.entity.Role;
 import org.yiqixue.secomm.entity.User;
 import org.yiqixue.secomm.exception.ResourceNotFoundException;
 import org.yiqixue.secomm.repository.CustomerRepository;
+// import org.yiqixue.secomm.repository.RoleRepository;
 import org.yiqixue.secomm.repository.UserRepository;
 
 import java.time.LocalDateTime;
@@ -23,6 +24,7 @@ public class UserManagementService {
 
     private final UserRepository userRepository;
     private final CustomerRepository customerRepository;
+    // private final RoleRepository roleRepository;
 
     /**
      * 获取待审批的用户列表
@@ -98,5 +100,74 @@ public class UserManagementService {
         
         return userRepository.findByIdWithRoles(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+    }
+
+    /**
+     * 更新用户基础信息
+     */
+    @Transactional
+    public User updateUser(Long userId, org.yiqixue.secomm.dto.user.UserUpdateRequest request) {
+        log.info("更新用户信息: 用户ID={}, 请求={}", userId, request);
+
+        User user = userRepository.findByIdWithRoles(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+
+        // 更新真实姓名
+        if (request.getRealName() != null && !request.getRealName().isBlank()) {
+            user.setRealName(request.getRealName().trim());
+        }
+
+        // 更新邮箱（系统以 username 作为邮箱）
+        if (request.getEmail() != null && !request.getEmail().isBlank()) {
+            String newEmail = request.getEmail().trim();
+            if (!newEmail.equals(user.getUsername()) && userRepository.existsByUsername(newEmail)) {
+                throw new IllegalArgumentException("邮箱已存在: " + newEmail);
+            }
+            user.setUsername(newEmail);
+        }
+
+        // 更新状态
+        if (request.getActive() != null) {
+            user.setStatus(request.getActive() ? User.UserStatus.ACTIVE : User.UserStatus.INACTIVE);
+        }
+
+        // 更新审批状态（仅对 Customer 角色有效）
+        if (request.getApprovalStatus() != null) {
+            user.setApprovalStatus(request.getApprovalStatus());
+
+            // 如审批通过且为客户角色，则补建 Customer 记录
+            boolean hasCustomerRole = user.getRoles() != null && user.getRoles().stream()
+                    .anyMatch(role -> "ROLE_USER".equals(role.getRoleCode()));
+            if (hasCustomerRole && User.ApprovalStatus.APPROVED.equals(request.getApprovalStatus())) {
+                if (!customerRepository.existsByUserId(userId)) {
+                    Customer customer = Customer.fromApprovedUser(user);
+                    customerRepository.save(customer);
+                    log.info("审批通过后已创建Customer记录: 用户ID={}, 客户ID={}", userId, customer.getId());
+                }
+            }
+        }
+
+        // // 更新角色（单选）
+        // if (request.getRoleCode() != null && !request.getRoleCode().isBlank()) {
+        //     Role role = roleRepository.findByRoleCode(request.getRoleCode())
+        //             .orElseThrow(() -> new ResourceNotFoundException("Role", "roleCode", request.getRoleCode()));
+
+        //     if (user.getRoles() == null) {
+        //         user.setRoles(new java.util.HashSet<>());
+        //     } else {
+        //         user.getRoles().clear();
+        //     }
+        //     user.getRoles().add(role);
+
+        //     if (User.ApprovalStatus.APPROVED.equals(user.getApprovalStatus()) && "ROLE_USER".equals(role.getRoleCode())) {
+        //         if (!customerRepository.existsByUserId(userId)) {
+        //             Customer customer = Customer.fromApprovedUser(user);
+        //             customerRepository.save(customer);
+        //             log.info("变更角色后已创建Customer记录: 用户ID={}, 客户ID={}", userId, customer.getId());
+        //         }
+        //     }
+        // }
+
+        return userRepository.save(java.util.Objects.requireNonNull(user));
     }
 }

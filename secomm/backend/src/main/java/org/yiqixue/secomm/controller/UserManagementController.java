@@ -81,4 +81,19 @@ public class  UserManagementController {
         
         return ResponseEntity.ok(ApiResponse.success(user));
     }
+
+    /**
+     * 更新用户基础信息
+     */
+    @PutMapping("/{userId}")
+    public ResponseEntity<ApiResponse<User>> updateUser(
+            @PathVariable Long userId,
+            @RequestBody org.yiqixue.secomm.dto.user.UserUpdateRequest request) {
+
+        log.info("管理员更新用户: 用户ID={}", userId);
+
+        User updated = userManagementService.updateUser(userId, request);
+
+        return ResponseEntity.ok(ApiResponse.success("用户更新成功", updated));
+    }
 }

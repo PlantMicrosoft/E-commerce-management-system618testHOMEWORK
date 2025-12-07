@@ -21,7 +21,7 @@
               <div class="w-64 h-64 bg-gray-100 flex-shrink-0 flex items-center justify-center overflow-hidden">
                 <img
                   v-if="product.imageUrl"
-                  :src="product.imageUrl"
+                  :src="getImageUrl(product.imageUrl)"
                   :alt="product.name"
                   class="w-full h-full object-cover"
                   @error="handleImageError"
@@ -159,7 +159,13 @@ const handleImageError = (event) => {
   console.log('图片加载失败:', event.target.src)
   event.target.style.display = 'none'
 }
-
+const getImageUrl = (imageUrl) => {
+  if (!imageUrl) return ''
+  if (imageUrl.startsWith('http')) return imageUrl
+  const processed = imageUrl.startsWith('/uploads') ? imageUrl : `/uploads${imageUrl}`
+  return `http://localhost:8080${processed}`
+}
+// 处理图片URL，统一走后端静态资源↑
 onMounted(() => {
   fetchCategories()
   const productId = route.params.id

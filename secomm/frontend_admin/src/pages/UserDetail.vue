@@ -85,16 +85,15 @@
                     <el-option label="客户" value="Customer" />
                     <el-option label="管理员" value="Admin" />
                     <el-option label="经理" value="Manager" />
-                  </el-select>
+    </el-select>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
-                <el-form-item label="Registration Status">
-                  <el-select v-model="editForm.registrationStatus" style="width: 100%">
-                    <el-option label="已注册" value="Registered" />
-                    <el-option label="待验证" value="Pending" />
-                    <el-option label="已验证" value="Verified" />
-                    <el-option label="已暂停" value="Suspended" />
+                <el-form-item label="审批状态">
+                  <el-select v-model="editForm.approvalStatus" style="width: 100%">
+                    <el-option label="待审批" value="PENDING" />
+                    <el-option label="已审批" value="APPROVED" />
+                    <el-option label="已拒绝" value="REJECTED" />
                   </el-select>
                 </el-form-item>
               </el-col>
@@ -217,11 +216,11 @@ const fetchUser = async (userId) => {
       user.value = {
         id: userData.id,
         name: userData.realName || userData.username,
-        email: userData.email || 'N/A',
+        email: userData.username || 'N/A',
         role: userData.roles?.[0]?.roleName || 'N/A',
-        status: userData.active ? 'Active' : 'Inactive',
+        status: userData.status === 'ACTIVE' ? 'Active' : 'Inactive',
         registrationStatus: userData.approvalStatus || 'N/A',
-        joinDate: userData.createdAt ? new Date(userData.createdAt).toLocaleDateString() : 'N/A',
+        joinDate: userData.createTime ? new Date(userData.createTime).toLocaleDateString() : 'N/A',
         lastLogin: userData.lastLoginTime || 'N/A',
         username: userData.username,
         phone: userData.phone,
@@ -231,7 +230,8 @@ const fetchUser = async (userId) => {
       // Initialize edit form
       editForm.value = {
         ...user.value,
-        active: user.value.status === 'Active',
+        active: userData.status === 'ACTIVE',
+        approvalStatus: user.value.approvalStatus || 'PENDING'
       }
     } else {
       ElMessage.error(data.message || '获取用户详情失败')
@@ -320,19 +320,26 @@ const saveUser = async () => {
         realName: editForm.value.name,
         email: editForm.value.email,
         active: editForm.value.active,
-        // Add other fields as needed
+        approvalStatus: editForm.value.approvalStatus
       })
     })
 
     const data = await response.json()
     
     if (data.status === 200) {
-      // Update user data
-      Object.assign(user.value, {
-        ...editForm.value,
-        status: editForm.value.active ? 'Active' : 'Inactive',
-      })
-      
+      const updated = data.data
+      user.value = {
+        ...user.value,
+        name: updated.realName || updated.username,
+        email: updated.username || 'N/A',
+        username: updated.username,
+        status: updated.status === 'ACTIVE' ? 'Active' : 'Inactive',
+        approvalStatus: updated.approvalStatus
+
+
+
+
+      }
       editMode.value = false
       ElMessage.success('用户更新成功!')
     } else {

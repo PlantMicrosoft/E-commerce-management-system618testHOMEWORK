@@ -12,6 +12,7 @@ import org.yiqixue.secomm.entity.Cart;
 import org.yiqixue.secomm.entity.CartItem;
 import org.yiqixue.secomm.entity.Customer;
 import org.yiqixue.secomm.entity.Product;
+import org.yiqixue.secomm.entity.User;
 import org.yiqixue.secomm.exception.ResourceNotFoundException;
 import org.yiqixue.secomm.exception.BusinessException;
 import org.yiqixue.secomm.mapper.CartMapper;
@@ -19,6 +20,7 @@ import org.yiqixue.secomm.repository.CartRepository;
 import org.yiqixue.secomm.repository.CartItemRepository;
 import org.yiqixue.secomm.repository.ProductRepository;
 import org.yiqixue.secomm.repository.CustomerRepository;
+import org.yiqixue.secomm.repository.UserRepository;
 
 import java.util.List;
 import java.util.Optional;
@@ -38,16 +40,36 @@ public class  CartService {
     private final ProductRepository productRepository;
     private final CartMapper cartMapper;
     private final CustomerRepository customerRepository;
+    private final UserRepository userRepository;
+
+    private Customer resolveOrCreateCustomer(Long userId) {
+        return customerRepository.findByUserId(userId)
+                .orElseGet(() -> {
+                    User user = userRepository.findByIdWithRoles(userId)
+                            .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+
+                    boolean hasCustomerRole = user.hasCustomerRole();
+                    if (!hasCustomerRole) {
+                        throw new BusinessException("当前用户未分配客户角色，无法使用购物车");
+                    }
+
+                    if (!User.ApprovalStatus.APPROVED.equals(user.getApprovalStatus())) {
+                        throw new BusinessException("客户账户尚未审批，请联系管理员");
+                    }
+
+                    Customer customer = Customer.fromApprovedUser(user);
+                    return customerRepository.save(customer);
+                });
+    }
 
     /**
      * 获取用户的购物车
      */
+    @Transactional
     public CartDTO getCartByCustomerId(Long userId) {
         log.info("获取用户购物车 - 用户ID: {}", userId);
 
-        // 根据userId查找Customer记录
-        Customer customer = customerRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Customer", "userId", userId));
+        Customer customer = resolveOrCreateCustomer(userId);
 
         Optional<Cart> cartOpt = cartRepository.findByCustomerIdAndStatus(
                 customer.getId(), Cart.CartStatus.ACTIVE);
@@ -73,9 +95,7 @@ public class  CartService {
         log.info("添加商品到购物车 - 用户ID: {}, 商品ID: {}, 数量: {}", 
                 userId, request.getProductId(), request.getQuantity());
 
-        // 根据userId查找Customer记录
-        Customer customer = customerRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Customer", "userId", userId));
+        Customer customer = resolveOrCreateCustomer(userId);
 
         // 验证商品是否存在
         Product product = productRepository.findById(request.getProductId())
@@ -140,9 +160,7 @@ public class  CartService {
         log.info("更新购物车商品项 - 用户ID: {}, 商品项ID: {}, 新数量: {}", 
                 userId, cartItemId, request.getQuantity());
 
-        // 根据userId查找Customer记录
-        Customer customer = customerRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Customer", "userId", userId));
+        Customer customer = resolveOrCreateCustomer(userId);
 
         CartItem cartItem = cartItemRepository.findById(cartItemId)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -151,6 +169,7 @@ public class  CartService {
         // 验证购物车是否属于该用户
         CartItem finalCartItem = cartItem;
         Cart cart = cartRepository.findById(cartItem.getCartId())
+
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Cart", "id",  finalCartItem.getCartId()));
 
@@ -184,9 +203,7 @@ public class  CartService {
     public void removeFromCart(Long userId, Long cartItemId) {
         log.info("从购物车移除商品 - 用户ID: {}, 商品项ID: {}", userId, cartItemId);
 
-        // 根据userId查找Customer记录
-        Customer customer = customerRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Customer", "userId", userId));
+        Customer customer = resolveOrCreateCustomer(userId);
 
         CartItem cartItem = cartItemRepository.findById(cartItemId)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -220,9 +237,7 @@ public class  CartService {
     public void clearCart(Long userId) {
         log.info("清空购物车 - 用户ID: {}", userId);
 
-        // 根据userId查找Customer记录
-        Customer customer = customerRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Customer", "userId", userId));
+        Customer customer = resolveOrCreateCustomer(userId);
 
         Optional<Cart> cartOpt = cartRepository.findByCustomerIdAndStatus(
                 customer.getId(), Cart.CartStatus.ACTIVE);
@@ -241,12 +256,11 @@ public class  CartService {
     /**
      * 获取购物车商品项列表
      */
+    @Transactional
     public List<CartItemDTO> getCartItems(Long userId) {
         log.info("获取购物车商品项 - 用户ID: {}", userId);
 
-        // 根据userId查找Customer记录
-        Customer customer = customerRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Customer", "userId", userId));
+        Customer customer = resolveOrCreateCustomer(userId);
 
         Optional<Cart> cartOpt = cartRepository.findByCustomerIdAndStatus(
                 customer.getId(), Cart.CartStatus.ACTIVE);

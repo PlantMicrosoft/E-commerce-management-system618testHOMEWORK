@@ -40,7 +40,7 @@
                   <div class="w-20 h-20 bg-gray-100 flex-shrink-0 flex items-center justify-center overflow-hidden">
                     <img
                       v-if="item.productImageUrl"
-                      :src="item.productImageUrl"
+                      :src="getImageUrl(item.productImageUrl)"
                       :alt="item.productName"
                       class="w-full h-full object-cover"
                       @error="handleImageError"
@@ -201,6 +201,13 @@ const handleShowAllProducts = () => {
 const handleImageError = (event) => {
   console.log('图片加载失败:', event.target.src)
   event.target.style.display = 'none'
+}
+
+const getImageUrl = (imageUrl) => {
+  if (!imageUrl) return ''
+  if (imageUrl.startsWith('http')) return imageUrl
+  const processed = imageUrl.startsWith('/uploads') ? imageUrl : `/uploads${imageUrl}`
+  return `http://localhost:8080${processed}`
 }
 
 // 处理结算

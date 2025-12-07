@@ -36,6 +36,17 @@ export default defineConfig({
             delete proxyRes.headers['content-security-policy']
           })
         }
+      },
+      '/uploads': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false
+      },
+      '/images': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/images/, '/uploads/images')
       }
     }
   }
